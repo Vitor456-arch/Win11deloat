@@ -27,7 +27,16 @@ for name in names:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(source, target)
                 found += 1
-    if name in ('PySide6-Essentials', 'shiboken6') and not found:
-        raise RuntimeError(f'No license files found for {name}; refusing incomplete bundle')
+    if name in ('PySide6-Essentials', 'shiboken6'):
+        # Some official wheels declare LGPL in metadata without shipping texts.
+        target = destination / name
+        shutil.copytree(Path(__file__).parent / 'licenses', target, dirs_exist_ok=True)
+        (target / 'PACKAGE-METADATA.txt').write_text(str(dist.metadata), encoding='utf-8')
 (destination / 'VERSIONS.txt').write_text('\n'.join(versions) + '\n', encoding='utf-8')
 print('\n'.join(versions))
+
+python_license = Path(sys.base_prefix) / 'LICENSE.txt'
+if python_license.is_file():
+    shutil.copy2(python_license, destination / 'CPython-LICENSE.txt')
+versions_file = destination / 'PYTHON-VERSION.txt'
+versions_file.write_text(sys.version + '\n', encoding='utf-8')
