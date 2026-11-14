@@ -5,6 +5,7 @@ import sys
 import tempfile
 import traceback
 
+from PySide6.QtCore import QEvent, QTimer
 from PySide6.QtWidgets import QApplication
 from .app import SECTIONS, Window
 from .storage import scan
@@ -47,4 +48,8 @@ def _run(report):
         if window.storage_table.table.rowCount() != 1:
             raise RuntimeError('Storage table smoke test failed')
         window.close()
+        window.deleteLater()
+        QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+        QTimer.singleShot(0, app.quit)
+        app.exec()
         report.write_text(json.dumps({'ok': True, 'pages': len(SECTIONS), 'logical_bytes': result.root.size, 'files': result.root.files, 'system_changes': False}), encoding='utf-8')

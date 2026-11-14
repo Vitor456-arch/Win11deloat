@@ -1,7 +1,7 @@
 import os
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 
-from PySide6.QtCore import QEventLoop, QSettings, QTimer
+from PySide6.QtCore import QEvent, QEventLoop, QSettings, QTimer
 from PySide6.QtWidgets import QApplication
 
 from clearwindows.app import SECTIONS, Window
@@ -45,4 +45,9 @@ def test_all_pages_theme_and_async_real_storage(tmp_path):
     assert window.storage_table.table.rowCount() == 1
     window.storage_table.search.setText('nonexistent')
     assert window.storage_table.table.isRowHidden(0)
+    window.pool.waitForDone(2000)
     window.close()
+    window.deleteLater()
+    QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    QTimer.singleShot(0, app.quit)
+    app.exec()

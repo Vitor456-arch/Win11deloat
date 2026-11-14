@@ -173,7 +173,9 @@ def temp_preview(root, cancel=None, age_days=7):
             with os.scandir(folder) as entries:
                 for entry in entries:
                     try:
-                        st = entry.stat(follow_symlinks=False)
+                        # Windows DirEntry.stat caches st_ino/st_dev/st_nlink as zero.
+                        # Query the path explicitly for usable file identity / link count.
+                        st = os.stat(entry.path, follow_symlinks=False)
                         if reparse(st):
                             continue
                         if stat.S_ISDIR(st.st_mode):

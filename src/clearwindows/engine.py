@@ -1,4 +1,5 @@
 """Durable write-ahead journal and explicit execution/rollback boundaries."""
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 import json
@@ -33,10 +34,17 @@ class Journal:
                 id INTEGER PRIMARY KEY, session TEXT NOT NULL, time TEXT NOT NULL,
                 event TEXT NOT NULL, payload TEXT NOT NULL)''')
 
+    @contextmanager
     def connect(self):
         db = sqlite3.connect(self.path, timeout=10)
-        db.execute('PRAGMA synchronous=FULL')
-        return db
+        try:
+            db.execute('PRAGMA synchronous=FULL')
+            with db:
+                yield db
+        finally:
+            # sqlite's transaction context does not close its file handle.
+            # Explicit close matters for recovery files and Windows packaging.
+            db.close()
 
     def add(self, session, event, payload):
         with self.connect() as db:

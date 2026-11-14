@@ -31,7 +31,7 @@ for name in names:
         # Some official wheels declare LGPL in metadata without shipping texts.
         target = destination / name
         shutil.copytree(Path(__file__).parent / 'licenses', target, dirs_exist_ok=True)
-        (target / 'PACKAGE-METADATA.txt').write_text(str(dist.metadata), encoding='utf-8')
+        (target / 'PACKAGE-METADATA.txt').write_text(dist.read_text('METADATA') or '', encoding='utf-8')
 (destination / 'VERSIONS.txt').write_text('\n'.join(versions) + '\n', encoding='utf-8')
 print('\n'.join(versions))
 
