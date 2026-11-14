@@ -1,0 +1,91 @@
+name: Build and publish Windows release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag (for example v0.1.0)
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      QT_QPA_PLATFORM: offscreen
+      RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate tag and source versions
+        shell: python
+        run: |
+          import os, pathlib, re, tomllib
+          tag = os.environ['RELEASE_TAG']
+          version = tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version']
+          assert re.fullmatch(r'v\d+\.\d+\.\d+', tag), 'Invalid version tag'
+          assert tag == 'v' + version, 'Tag must match project version'
+          with open(os.environ['GITHUB_ENV'], 'a') as env:
+              env.write('APP_VERSION=' + version + '\n')
+      - name: Install build and test dependencies
+        run: python -m pip install -e ".[test]" "pyinstaller==6.16.0"
+      - name: Test without destructive operations
+        run: python -m pytest -q -ra --junitxml=test-results.xml
+      - name: Publish readable test summary
+        if: always()
+        run: python packaging/test_summary.py
+      - name: Build portable ZIP and Setup EXE
+        shell: pwsh
+        run: ./packaging/build.ps1 -Version $env:APP_VERSION
+      - name: Smoke-test portable and installed builds
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Expand-Archive "release/ClearWindows-$env:APP_VERSION-Portable-x64.zip" portable-test
+          $portable = (Resolve-Path 'portable-test/ClearWindows/ClearWindows.exe').Path
+          $p = Start-Process $portable -ArgumentList '--smoke-test', "$env:RUNNER_TEMP/portable-smoke.json" -PassThru
+          if (-not $p.WaitForExit(60000)) { $p.Kill(); throw 'Portable smoke test timeout' }
+          if ($p.ExitCode -ne 0) { throw "Portable smoke test failed: $($p.ExitCode)" }
+          $report = Get-Content "$env:RUNNER_TEMP/portable-smoke.json" -Raw | ConvertFrom-Json
+          if (-not $report.ok) { throw 'Portable smoke report failed' }
+          $setup = (Resolve-Path "release/ClearWindows-$env:APP_VERSION-Setup-x64.exe").Path
+          $install = "$env:RUNNER_TEMP/ClearWindows-installed"
+          $p = Start-Process $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=$install", "/LOG=$env:RUNNER_TEMP/setup.log" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Installer failed: $($p.ExitCode)" }
+          $p = Start-Process "$install/ClearWindows.exe" -ArgumentList '--smoke-test', "$env:RUNNER_TEMP/installed-smoke.json" -PassThru
+          if (-not $p.WaitForExit(60000)) { $p.Kill(); throw 'Installed smoke test timeout' }
+          if ($p.ExitCode -ne 0) { throw "Installed smoke failed: $($p.ExitCode)" }
+          $report = Get-Content "$env:RUNNER_TEMP/installed-smoke.json" -Raw | ConvertFrom-Json
+          if (-not $report.ok) { throw 'Installed smoke report failed' }
+          $p = Start-Process "$install/unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Uninstaller failed: $($p.ExitCode)" }
+          if (Test-Path "$install/ClearWindows.exe") { throw 'Uninstaller left application executable' }
+          "## Package smoke tests`n`nPortable ZIP: passed. Silent Setup installation: passed. Installed application: passed. Uninstall: passed. No optimizations executed." >> $env:GITHUB_STEP_SUMMARY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ClearWindows-${{ env.APP_VERSION }}-Windows-x64
+          path: release/*
+          if-no-files-found: error
+      - name: Publish release with verified packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) { throw 'Release already exists; refusing to replace published binaries' }
+          gh release create $env:RELEASE_TAG --verify-tag --repo $env:GITHUB_REPOSITORY --title "Clear Windows $env:APP_VERSION (Preview)" --notes-file packaging/RELEASE-NOTES.md --prerelease "release/ClearWindows-$env:APP_VERSION-Setup-x64.exe" "release/ClearWindows-$env:APP_VERSION-Portable-x64.zip" release/SHA256SUMS.txt
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }
+          "## Release`n`nPublished: https://github.com/$env:GITHUB_REPOSITORY/releases/tag/$env:RELEASE_TAG" >> $env:GITHUB_STEP_SUMMARY

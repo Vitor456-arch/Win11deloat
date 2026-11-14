@@ -6,3 +6,7 @@ __pycache__/
 build/
 dist/
 *.sqlite3*
+release/
+portable-test/
+*.spec
+test-results.xml

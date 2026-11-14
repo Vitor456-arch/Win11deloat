@@ -154,7 +154,7 @@ class Treemap(QWidget):
 
 
 class Window(QMainWindow):
-    def __init__(self, data_dir=None, backend=None):
+    def __init__(self, data_dir=None, backend=None, auto_scan=True):
         super().__init__()
         self.backend = backend or Windows()
         self.settings = QSettings('ClearWindows', 'ClearWindows')
@@ -213,9 +213,10 @@ class Window(QMainWindow):
         self.theme_timer.start(10000)
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.poll)
-        self.timer.start(10000)
+        if auto_scan:
+            self.timer.start(10000)
         self.refresh_history()
-        if self.backend.supported:
+        if auto_scan and self.backend.supported:
             QTimer.singleShot(100, self.refresh)
 
     def button(self, label, fn):
@@ -771,6 +772,10 @@ QToolTip {{background: {card}; color: {fg}; border: 1px solid {border};}}
 
 
 def main():
+    if '--smoke-test' in sys.argv:
+        from .smoke import run
+        run()
+        return
     app = QApplication(sys.argv)
     app.setApplicationName('Clear Windows')
     app.setOrganizationName('ClearWindows')

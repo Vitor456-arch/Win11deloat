@@ -1,0 +1,19 @@
+Clear Windows 0.1.0 - development preview
+
+This installer is not digitally signed. It installs Clear Windows for the current
+user without requiring administrator privileges. Python and Qt are bundled.
+
+The application never applies optimizations automatically. Registry changes and
+optional-app removal require an explicit review and confirmation in the app.
+Windows-changing features still require the disposable-VM validation described
+in the included documentation. This preview is not a production certification.
+
+Uninstalling removes program files and shortcuts. It intentionally preserves
+optimization history, Registry backups, baselines and user preferences, which
+are stored outside the installation directory. Keep those backups for recovery.
+
+Qt/PySide and other bundled libraries retain their original licenses. See
+THIRD-PARTY.md and third-party-licenses in the installed application directory.
+You may replace the dynamically linked Qt libraries with compatible modified
+versions, and reverse engineer for debugging those modifications, as permitted
+by the applicable licenses. No additional restrictions are imposed here.

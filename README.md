@@ -8,7 +8,17 @@ A Windows desktop utility for inspecting system overhead, reviewing optional app
 
 *Actual Linux development run; Windows-only controls are unavailable on this platform.*
 
-## Run on Windows
+## Windows downloads
+
+Open [GitHub Releases](https://github.com/Vitor456-arch/Win11deloat/releases) and choose the release assets:
+
+- `ClearWindows-0.1.0-Setup-x64.exe`: per-user installation with shortcuts and an uninstaller. No separate Python installation needed.
+- `ClearWindows-0.1.0-Portable-x64.zip`: extract the entire folder and run `ClearWindows.exe`; keep `_internal` next to it.
+- `SHA256SUMS.txt`: verify downloads using `Get-FileHash -Algorithm SHA256` in PowerShell.
+
+These are unsigned development-preview packages. Uninstall preserves history and recovery backups outside the installation directory. Read the release notes for the validation boundary.
+
+## Run from source on Windows
 
 Requires Windows 11 (Windows 10 is a compatibility target), 64-bit Python 3.11–3.14, and the built-in Windows PowerShell 5.1. Qt dependency availability depends on your Python/platform combination. Start as a normal user; administrator rights are not required for ordinary inventory or per-user preferences.
 
@@ -58,7 +68,7 @@ QT_QPA_PLATFORM=offscreen .venv/bin/python -m pytest -q
 
 On Linux, only the interface, storage analyzer, exports, and portable tests are supported. Windows system information is **not simulated**. Headless Qt may need `QT_QPA_PLATFORM=offscreen`. On Windows use `.venv\Scripts\python.exe -m pytest -q`.
 
-Tests exercise real temporary-file scans and Qt interaction, plus an injected in-memory Windows adapter to verify destructive-operation policy without modifying the development machine. The Windows read-only integration test runs only on Windows. CI covers Linux and Windows and can build a Windows executable manually; this repository does not claim a signed or production-validated release.
+Tests exercise real temporary-file scans and Qt interaction, plus an injected in-memory Windows adapter to verify destructive-operation policy without modifying the development machine. The Windows read-only integration test runs only on Windows. CI covers Linux and Windows. Version tags trigger setup/portable builds, package smoke tests, SHA-256 checksums and GitHub prerelease publication; this repository does not claim a signed or production-validated release.
 
 ## Architecture and data
 
@@ -77,3 +87,17 @@ The full product brief is preserved in [docs/PRODUCT-BRIEF.md](docs/PRODUCT-BRIE
 Disk totals are logical bytes, not guaranteed allocated or reclaimable space. Hard links may be counted twice, directory contents can change while scanning, and unavailable paths produce visible errors. The largest 200 files in each directory are retained for display; smaller files are aggregated, so the report is not a complete per-file listing. Millions of directory nodes still require memory; full-volume stress validation is pending.
 
 Licensed under MIT for original code; Qt for Python and its runtime libraries retain their own licenses (see [THIRD-PARTY.md](THIRD-PARTY.md)).
+
+## Build a Windows release
+
+On Windows with Python 3.12 and Inno Setup 6 or 7 installed:
+
+```powershell
+python -m pip install -e ".[test]" "pyinstaller==6.16.0"
+python -m pytest -q
+./packaging/build.ps1 -Version 0.1.0
+```
+
+Outputs are written to `release/`. The `Build and publish Windows release` workflow runs on a matching `v0.1.0` tag (version must match `pyproject.toml`). It tests the code, builds both assets, checks the extracted portable app and silent setup/uninstall, then publishes a prerelease with hashes. Existing published assets are never silently overwritten. A failed test/build prevents publication. The manual workflow input can retry the same existing tag after an infrastructure failure.
+
+The onedir bundle dynamically loads Qt DLLs and includes the installed distributions' license files, exact dependency versions, source-availability references and product documentation.
