@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "clearwindows"
+version = "0.1.0"
+description = "Transparent Windows analysis, controlled debloating, and recovery"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = ["PySide6-Essentials==6.12.0"]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<10"]
+
+[project.scripts]
+clearwindows = "clearwindows.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
