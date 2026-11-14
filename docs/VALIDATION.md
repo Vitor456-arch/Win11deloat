@@ -12,3 +12,27 @@ Environment: Linux (Debian 13), Python 3.12, Qt for Python 6.12.0. No Windows ma
 No actual Windows Registry write, application removal, process termination, restore point, Windows GUI session, packaged Windows executable, or large-drive stress test was executed locally. The in-memory adapter tests validate policy and state transitions, not the correctness of Windows integration. Included GitHub workflows have not been claimed to pass until run results are observed.
 
 Follow `WINDOWS-VALIDATION.md` before using modifications on a non-disposable installation. This is a development foundation, not a production certification.
+
+## Windows release preparation
+
+After the initial development report, release preparation added two packaging
+checks (CLI smoke and bundled license/version retention). The local Linux suite
+now reports **27 passed, 1 skipped**.
+
+The complete CI matrix passed for commit `6501aee`:
+https://github.com/Vitor456-arch/Win11deloat/actions/runs/43621767714
+
+- Ubuntu 24.04 / Python 3.12 and 3.13.
+- Windows Server 2022 runner / Python 3.12 and 3.13, including the real read-only
+  Windows inventory/metrics integration test and headless Qt UI tests.
+
+Windows CI exposed a real temporary-file-preview bug: Windows `DirEntry.stat`
+reports zero for identity/link-count fields, so preview now uses `os.stat` for
+those fields. SQLite connections now explicitly close their handles, and smoke
+tests shut down the Qt event loop and widgets explicitly.
+
+No destructive Windows changes have been run. Windows 11 interactive, DPI,
+accessibility and destructive disposable-VM validation remain outstanding.
+The release workflow separately gates publication on portable/installed binary
+smoke tests and silent installer/uninstaller checks; consult the release's own
+Actions run for their outcome.

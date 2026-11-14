@@ -73,6 +73,18 @@ jobs:
           if ($p.ExitCode -ne 0) { throw "Uninstaller failed: $($p.ExitCode)" }
           if (Test-Path "$install/ClearWindows.exe") { throw 'Uninstaller left application executable' }
           "## Package smoke tests`n`nPortable ZIP: passed. Silent Setup installation: passed. Installed application: passed. Uninstall: passed. No optimizations executed." >> $env:GITHUB_STEP_SUMMARY
+      - name: Expose package smoke diagnostics
+        if: always()
+        shell: python
+        run: |
+          import json, os, pathlib
+          for name in ['portable-smoke.json', 'installed-smoke.json']:
+              path = pathlib.Path(os.environ['RUNNER_TEMP']) / name
+              if path.exists():
+                  data = json.loads(path.read_text(encoding='utf-8'))
+                  text = (name + ': ' + json.dumps(data)).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+                  level = 'notice' if data.get('ok') else 'error'
+                  print('::' + level + ' title=Packaged app smoke::' + text)
       - uses: actions/upload-artifact@v4
         with:
           name: ClearWindows-${{ env.APP_VERSION }}-Windows-x64
